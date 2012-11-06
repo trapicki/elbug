@@ -5,6 +5,7 @@
 [H] Cleanup Code
 [H] Make usable with both paddle and keyer 
 
+[m] Add license message on start
 [m] support adaptive speed (short dits, long dahs)
 [m] Add more special signals
 [m] Input via keyboard
