@@ -1,6 +1,6 @@
 /* serial elbug = electronic morse key. */
 /* by Günther Montag dl4mge */
-
+/* changed by Patrick Strasser oe6pse <oe6pse@wirklich.priv.at> */
 /* elbug is distributed alone and as part of the hf package. */
 /* I plan too edit it also separate. */
 
