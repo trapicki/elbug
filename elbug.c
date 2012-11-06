@@ -1,6 +1,7 @@
 /* serial elbug = electronic morse key. */
 /* by Günther Montag dl4mge */
-/* changed by Patrick Strasser oe6pse <oe6pse@wirklich.priv.at> */
+/* extenden by Patrick Strasser oe6pse <oe6pse@wirklich.priv.at> */
+
 /* elbug is distributed alone and as part of the hf package. */
 /* I plan too edit it also separate. */
 
@@ -32,7 +33,6 @@
 #include <signal.h>
 #ifdef __linux__
 #include <sys/io.h>
-#include <sys/kd.h>
 #define IOPERM ioperm
 #endif
 #ifdef __FreeBSD__ 
@@ -119,7 +119,6 @@ char *cable = "\n"
 int pin = TIOCM_RTS;
 char* name_ptt = "/dev/ttyS0";
 char* name_spkr = "/dev/console";
-int port = 0x3f8;
 int invert_ptt = 0;
 int spkr = 0;
 unsigned int wpm = 12, tone = 440;
@@ -334,23 +333,7 @@ int main(int argc, char *argv[]) {
       }
       break;
     case 's':
-      name_ptt = optarg;
-      if (! strcmp (name_ptt, "/dev/ttyS0")) {
-        port = 0x03F8;
-        break;
-      }
-      if (! strcmp (name_ptt, "/dev/ttyS1")) {
-        port = 0x02F8;
-        break;
-      }
-      if (! strcmp (name_ptt, "/dev/ttyS2")) {
-        port = 0x03E8;
-        break;
-      }
-      if (! strcmp (name_ptt, "/dev/ttyS3")) {
-        port = 0x02E8;
-        break;
-      }
+      name_ptt = strdup(optarg);
       break;
     case 'd':
       pin = TIOCM_DTR;
@@ -408,8 +391,8 @@ int main(int argc, char *argv[]) {
   /* from man console_ioctl */
     		
   printf("%s",cable);
-  printf("\nelbug: %d wpm at %s, address %04x, %s %s\n",
-         wpm, name_ptt, port,
+  printf("\nelbug: %d wpm at %s, %s %s\n",
+         wpm, name_ptt,
          invert_ptt ? "inverted ptt output," : "",
          pin == TIOCM_DTR ? "DTR output" : "RTS output");
   printf("A dit will last %d ms.\n", dotus/1000);
