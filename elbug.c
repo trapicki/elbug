@@ -62,10 +62,10 @@
 /* from cwdaemon/lib.c */
 
 typedef enum {
-  wait_none = 0,
-  wait_dot,
-  wait_char,
-  wait_word
+  wait_0 = 0,
+  wait_1,
+  wait_2,
+  wait_3,
 } wait_t;
 
 
@@ -426,7 +426,7 @@ int main(int argc, char *argv[]) {
     int col_counter = 0;
     int tick_counter = 0;
     int high = 0;
-    wait_t waiting = wait_none;
+    wait_t waiting = wait_0;
     printf("entering bug mode");
 
     for (;;) {
@@ -471,41 +471,47 @@ int main(int argc, char *argv[]) {
           // high edge
           verb("/");
           switch_tone(1);
-          if (wait_word == waiting) {
+          if (wait_3 == waiting) {
             printf("\n");
           }
           tick_counter = 0;
-          waiting = wait_none;
+          waiting = wait_0;
           high = 1;
         }
         else { /* staying low */
           verb("_");
           if (tick_counter < 2 * dot_resolution) {
-            // inter-character
+            // inter-dot
+            /* waint for next dit or dah */ 
             //nop
-            if (waiting < wait_dot) {
-              waiting = wait_dot;
+            ;
+            }
+          else if (tick_counter < 6 * dot_resolution) {
+            // inter-character space
+            /* next dit or dah starts new character */
+            if (waiting < wait_1) {
+              // four times PAUSE ist one space... FIXME
               verb(",");
+              decode(PAUSE);
+              waiting = wait_1;
             }
           }
-          else if (tick_counter < 4.5 * dot_resolution) {
-            // inter-word space
-            if (waiting < wait_char) {
-              // four times PAUSE ist one space... FIXME
-              decode(PAUSE);
-              decode(PAUSE);
-              decode(PAUSE);
-              decode(PAUSE);
-              verb(";");
-            }
-            waiting = wait_char;
+          else if (tick_counter < 14 * dot_resolution) {
+            // long space
+            /* word is over. ad space */
+              if (waiting < wait_2) {
+                verb(";");
+                decode(PAUSE);
+                decode(PAUSE);
+                decode(PAUSE);
+                waiting = wait_2;
+              }
           }
           else {
-            // long space
-            if (waiting < wait_word
-                && tick_counter > 15 * dot_resolution) {
-              waiting = wait_word;
+            // idling
+            if (waiting < wait_3) {
               verb("v");
+              waiting = wait_3;
             }
           }
         }
