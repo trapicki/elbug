@@ -1,0 +1,16 @@
+[H] High priority (required, do before Medium)
+[m] Medium priority (required)
+[l] Low priority (not required, nice to have)
+
+[H] Cleanup Code
+[H] Make usable with both paddle and keyer 
+
+[m] support adaptive speed (short dits, long dahs)
+[m] Add more special signals
+[m] Input via keyboard
+[m] Real sound output (alsa and friends)
+
+[l] quit program with end-of-transmission
+[l] signal shaping for better tone
+[l] sound output for given text
+[l] dual-window: read given text from screen, enter via CW, recognize CW and compare to given text.
