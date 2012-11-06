@@ -56,6 +56,7 @@
 #define PAUSE 0
 #define DIT 1
 #define DAH 2
+// FIXME make pause handling more generic
 #define WORDPAUSE 4
 #define MAX_SIGN_SIZE 16
 /* from cwdaemon/lib.c */
@@ -191,6 +192,7 @@ void decode(int sign)
       }
     } 
     pausecount++;
+    // FIXME make pause handling more generic
     if (pausecount > WORDPAUSE) {
       printf(" ");
       fflush(stdout);
@@ -471,9 +473,12 @@ int main(int argc, char *argv[]) {
             //nop
             ;           
           }
-          else if (tick_counter < 3010*dot_resolution) {
+          else if (tick_counter < 30*dot_resolution) {
             // inter-word space
             if (!waiting) {
+              // four times PAUSE ist one space... FIXME
+              decode(PAUSE);
+              decode(PAUSE);
               decode(PAUSE);
               decode(PAUSE);
             }
