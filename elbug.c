@@ -57,9 +57,18 @@
 #define DIT 1
 #define DAH 2
 // FIXME make pause handling more generic
-#define WORDPAUSE 4
+#define WORDPAUSE 3
 #define MAX_SIGN_SIZE 16
 /* from cwdaemon/lib.c */
+
+typedef enum {
+  wait_none = 0,
+  wait_dot,
+  wait_char,
+  wait_word
+} wait_t;
+
+
 typedef struct {
   const unsigned char character;	/* The character represented */
   const char *representation;     /* Dot-dash shape of the character */
@@ -89,7 +98,7 @@ static const cw_entry_t cw_table[] = {
   { '=', "-...-"  }, { '?', "..--.." }, { '_', "..--.-" },
   { '@', ".--.-." },
   /* Cwdaemon special characters */
-  { '<', "...-.-" }, { '>', "-...-.-"}, { '!', "...-." }, 
+  { '<', "...-.-" }, { '>', "-...-.-"}, { '!', "...-." },
   { '&', ".-..."  }, { '*', ".-.-."  },
   /* Error-sign */
   { 'e', "......."},
@@ -110,7 +119,7 @@ static const cw_entry_t cw_table[] = {
 
 char *cable = "\n"
   "* * * elbug - electronic morse key by dl4mge. How to cable: * * *\n"
-  "*  Middle pad: +9V battery via Resistor 2 k                     *\n"                           
+  "*  Middle pad: +9V battery via Resistor 2 k                     *\n"
   "*  Left  contact: -> DCD (9-pin plug: 1) (25-pin plug: 8)       *\n"
   "*  Right contact: -> CTS (9-pin plug: 8) (25-pin plug: 5)       *\n"
   "*  Ground: -pole battery (9-pin plug: 5) (25-pin plug: 7)       *\n"
@@ -137,10 +146,11 @@ void verb(char *format, ...)
         return;
 
     va_start(args, format);
-    vprintf(format, args);
+    vfprintf(stderr, format, args);
     va_end(args);
+    fflush(stderr);
 }
-void decode(int sign) 
+void decode(int sign)
 {
   static char morse[MAX_SIGN_SIZE];
   int i;
@@ -153,10 +163,10 @@ void decode(int sign)
     loop = sizeof(cw_table) / sizeof(cw_entry_t);
     printf("decode function: %d signs in table.\n", loop);
   }
-	
+
   if (sign == DIT) element = '.';
   if (sign == DAH) element = '-';
-  
+
 
   if (PAUSE != sign) {
     verb("%c", element);
@@ -172,7 +182,7 @@ void decode(int sign)
     morse[bit+1] = 0x0;
     bit++;
     //printf("%s\n", morse);
-    
+
   } else {
     if (pause) return;
     if (!pausecount) { /* compare with morse table */
@@ -184,13 +194,13 @@ void decode(int sign)
           printf("%c", cw_table[i].character);
           fflush(stdout);
           break;
-        }	       	
+        }
         if (i == loop - 2) {
           printf(" ?? ");
           fflush(stdout);
         }
       }
-    } 
+    }
     pausecount++;
     // FIXME make pause handling more generic
     if (pausecount > WORDPAUSE) {
@@ -214,7 +224,7 @@ console_open ()
 {
   int has_KIOCSOUND = -1;
   /* Open the console device file, for write only. */
-  
+
   if (!strcmp(name_spkr, "-")) {
     fd_spkr = 1; /* STDOUT */
     printf("using STDOUT for speaker output\n");
@@ -260,7 +270,7 @@ void switch_tone(int state) {
 void output_elbug_serial(int ptt)
 {
   int status;
-	
+
   if (fd_ptt < 0) {
     printf("no serial port open for output.\n");
     exit (1);
@@ -269,18 +279,18 @@ void output_elbug_serial(int ptt)
   /* tone */
   switch_tone(ptt);
   /* serial output */
-	
+
   /* seems this worked for intel only. */
   /*
-	if (ioctl(fd_ptt, 
-    ((ptt && !invert_ptt) || (!ptt && invert_ptt)) ? 
+	if (ioctl(fd_ptt,
+    ((ptt && !invert_ptt) || (!ptt && invert_ptt)) ?
     TIOCMBIS : TIOCMBIC, &pin)) {
     printf ("ioctl: TIOCMBI[CS]\n");
     printf ( "serial port can not be accessed!\n");
     exit (1);
 	}
   */
-	
+
   if (invert_ptt) ptt = !ptt;
   if (ioctl(fd_ptt, TIOCMGET, &status)) {
     printf ("ioctl: TIOCMGET, cannot read serial port.\n");
@@ -309,7 +319,7 @@ void elbug_send_dit() {
 
 void elbug_send_dah() {
   output_elbug_serial(1);
-  //printf("_");    
+  //printf("_");
   wait(dotus * 3);
   output_elbug_serial(0);
   wait(dotus);
@@ -319,13 +329,13 @@ int main(int argc, char *argv[]) {
   int c, status, err = 0;
   static int idlewait = 0;
   unsigned short int dcd, cts, dsr;
-  
+
   signal(SIGINT,  handle_signal);
   signal(SIGQUIT, handle_signal);
-  signal(SIGTERM, handle_signal);  
-  signal(SIGKILL, handle_signal);    
+  signal(SIGTERM, handle_signal);
+  signal(SIGKILL, handle_signal);
 
-  while ((c = getopt(argc, argv, "f:w:s:dio:b")) != -1) {
+  while ((c = getopt(argc, argv, "f:w:s:dio:bv")) != -1) {
     switch (c) {
     case 'f':
       tone = strtoul(optarg, NULL, 0);
@@ -358,6 +368,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'v':
       verbose = 1;
+      break;
     default:
       err++;
       break;
@@ -370,8 +381,9 @@ int main(int argc, char *argv[]) {
              "  -s: serial port for in/output (default: /dev/ttyS0)\n"
              "  -d: output through DTR pin    (default is RTS)\n"
              "  -i: invert PTT                (default: PTT = positive)\n"
-             "  -o: file/device for output    (default: %s)"     
+             "  -o: file/device for output    (default: %s)"
              "  -b: bug mode - device generates dits and dahs already (only read CTS/pin 8\n"
+             "  -v: verbose                   (default off, verbose messages go to stderr)"
              "%s", name_spkr, cable);
       exit (0);
 	}
@@ -381,17 +393,17 @@ int main(int argc, char *argv[]) {
 	printf("This program has to be called with root permissions.\n");
     }*/
   if ((fd_ptt = open(name_ptt, O_RDWR, 0)) < 0) {
-	printf("error in opening ptt device %s - maybe try another one?\n", 
+	printf("error in opening ptt device %s - maybe try another one?\n",
            name_ptt);
     printf("Error: %s\n", strerror(fd_ptt));
   }
-    
+
   dotus = 1000000 / (wpm * 50 / 60);
   if (tone) {
     argp = 1193180/tone;
   }
   /* from man console_ioctl */
-    		
+
   printf("%s",cable);
   printf("\nelbug: %d wpm at %s, %s %s\n",
          wpm, name_ptt,
@@ -399,14 +411,14 @@ int main(int argc, char *argv[]) {
          pin == TIOCM_DTR ? "DTR output" : "RTS output");
   printf("A dit will last %d ms.\n", dotus/1000);
   printf("See options by elbug -h. Stop me by <strg>c.\n");
-    
+
 #ifdef KIOCSOUND
   if (tone > 0) {
     spkr = console_open();
   }
 #else
   printf ("KIOCSOUND not found, no sound. Sorry.\n");
-#endif        
+#endif
 
   output_elbug_serial(0);
 
@@ -414,9 +426,9 @@ int main(int argc, char *argv[]) {
     int col_counter = 0;
     int tick_counter = 0;
     int high = 0;
-    int waiting = 0;
+    wait_t waiting = wait_none;
     printf("entering bug mode");
-    
+
     for (;;) {
       status = 0;
       ioctl(fd_ptt, TIOCMGET, &status);
@@ -425,22 +437,22 @@ int main(int argc, char *argv[]) {
       if (high) {
         if (cts) {
           verb("°");
-        } 
+        }
         else { /* low edge */
           verb("\\");
           switch_tone(0);
-          if (tick_counter < 1*dot_resolution) {
+          if (tick_counter < 1 * dot_resolution) {
             // fast dit
             decode(DIT);
             /* TODO: inc WPM */
             verb("f");
           }
-          else if (tick_counter < 2*dot_resolution) {
+          else if (tick_counter < 2 * dot_resolution) {
             // normal dit (1 or 1.5 dots)
             decode(DIT);
           }
-          else if (tick_counter < 4.5*dot_resolution) {
-            // normal dah (2 to 4 dots) 
+          else if (tick_counter < 4.5 * dot_resolution) {
+            // normal dah (2 to 4 dots)
             decode(DAH);
           }
           else {
@@ -459,34 +471,42 @@ int main(int argc, char *argv[]) {
           // high edge
           verb("/");
           switch_tone(1);
-          if (2 == waiting) {
+          if (wait_word == waiting) {
             printf("\n");
           }
           tick_counter = 0;
-          waiting = 0;
+          waiting = wait_none;
           high = 1;
-        } 
+        }
         else { /* staying low */
           verb("_");
-          if (tick_counter < 2.5*dot_resolution) {
+          if (tick_counter < 2 * dot_resolution) {
             // inter-character
             //nop
-            ;           
+            if (waiting < wait_dot) {
+              waiting = wait_dot;
+              verb(",");
+            }
           }
-          else if (tick_counter < 30*dot_resolution) {
+          else if (tick_counter < 4.5 * dot_resolution) {
             // inter-word space
-            if (!waiting) {
+            if (waiting < wait_char) {
               // four times PAUSE ist one space... FIXME
               decode(PAUSE);
               decode(PAUSE);
               decode(PAUSE);
               decode(PAUSE);
+              verb(";");
             }
-            waiting = 1;
+            waiting = wait_char;
           }
           else {
             // long space
-            waiting = 2;
+            if (waiting < wait_word
+                && tick_counter > 15 * dot_resolution) {
+              waiting = wait_word;
+              verb("v");
+            }
           }
         }
       } // if (high)
@@ -496,7 +516,7 @@ int main(int argc, char *argv[]) {
       if (col_counter > 80) {
         printf("\n");
         col_counter = 0;
-      }  
+      }
       wait(dotus/dot_resolution);
       tick_counter++;
     }
@@ -531,5 +551,4 @@ int main(int argc, char *argv[]) {
       wait (dotus/4);
     }
   }
-    
 }
