@@ -1,0 +1,20 @@
+elbug
+
+a simple c program for a serial elbug = electronic morse key, which is to be plugged to the serial port, its output is also a pin in the serial port.
+
+Just compile it by 'gcc elbug.c -o elbug' 
+or use the ready-compiled file and copy elbug to user/local/bin. 
+
+Call it as root by typing ./elbug
+
+How to cable your homebrew elbug? 
+Middle pad: +9V battery via Resistor 2k
+Left  contact: -> DCD 
+(9-pin plug: 1) (25-pin plug: 8)       
+Right contact: -> CTS 
+(9-pin plug: 8) (25-pin plug: 5)       
+Ground: -pole battery 
+(9-pin plug: 5) (25-pin plug: 7)       
+
+/* by Günther Montag , ex- dl4mge */
+dr.g.montag@gmx.net
