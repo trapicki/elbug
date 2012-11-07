@@ -138,6 +138,8 @@ int dotus;
 int bug_mode = 0;
 int verbose = 0;
 int dot_resolution = 5;
+int wpm_eff;
+double farn_mod_factor= 1;
 
 void verb(char *format, ...)
 {
@@ -330,12 +332,16 @@ int main(int argc, char *argv[]) {
   static int idlewait = 0;
   unsigned short int dcd, cts, dsr;
 
+  // init vars
+  wpm_eff = wpm;
+  //
+
   signal(SIGINT,  handle_signal);
   signal(SIGQUIT, handle_signal);
   signal(SIGTERM, handle_signal);
   signal(SIGKILL, handle_signal);
 
-  while ((c = getopt(argc, argv, "f:w:s:dio:bv")) != -1) {
+  while ((c = getopt(argc, argv, "f:w:s:dio:bve:")) != -1) {
     switch (c) {
     case 'f':
       tone = strtoul(optarg, NULL, 0);
@@ -359,6 +365,10 @@ int main(int argc, char *argv[]) {
         printf("Speed %d out of range 3...90 wpm\n", wpm);
         err++;
       }
+      if (wpm < wpm_eff) {
+        printf("Speed must not be smaller than Farnsworth effective speed");
+        err++;
+      }
       break;
     case 'o':
       name_spkr = strdup(optarg);
@@ -369,8 +379,19 @@ int main(int argc, char *argv[]) {
     case 'v':
       verbose = 1;
       break;
+    case 'e':
+      wpm_eff = strtoul(optarg, NULL, 0);
+      if (wpm_eff < 3 || wpm_eff > 90) {
+        printf("Farnsworth effective speed %d out of range 3...90 wpm\n", wpm);
+        err++;
+      }
+      if (wpm < wpm_eff) {
+        printf("Farnsworth effective speed must be smaller than speed");
+        err++;
+      }
+      break;
     default:
-      err++;
+       err++;
       break;
     }
     if (err) {
@@ -383,7 +404,8 @@ int main(int argc, char *argv[]) {
              "  -i: invert PTT                (default: PTT = positive)\n"
              "  -o: file/device for output    (default: %s)"
              "  -b: bug mode - device generates dits and dahs already (only read CTS/pin 8\n"
-             "  -v: verbose                   (default off, verbose messages go to stderr)"
+             "  -v: verbose                   (default off, verbose messages go to stderr)\e"
+             "  -e: Farnsworth effective speed"
              "%s", name_spkr, cable);
       exit (0);
 	}
@@ -397,6 +419,33 @@ int main(int argc, char *argv[]) {
            name_ptt);
     printf("Error: %s\n", strerror(fd_ptt));
   }
+
+  /* standard word PARIS takes 50 dots
+     standard char gap is 3 dots, word gap is 7 dots
+     PARIS:
+     1 word space        1*7   7
+     4 char space        4*3  12
+     9 symbol space      9*1   9
+    10 dits             10*1  10
+     4 dahs              4*3  12
+     ---------------------------
+     Sum                      50
+
+     For Farnsworth, dit, dah time and symbol space stay the same,
+     word and char space are lengthened.
+     One minute has wpm*50 dots.
+     In the same time we now need only wpm_eff words.
+     Every word has 31 dits' worth fixed-length parts (dits and dahs)
+     and the rest is x*19 dits long, where x is the modification factor.
+     This gives the equations:
+     wpm * 50 = wpm_eff * 31 + wmp * x * 19
+     Rearanged this gives:
+     x = ( 50 - ( wpm_eff / wpm ) * 31 ) / 19
+*/
+ 
+  farn_mod_factor = ( 50 - ( wpm_eff*1.0 / wpm ) * 31 ) / 19;
+
+  verb("Farnsworth space modification factor:\n  %f\n", farn_mod_factor);
 
   dotus = 1000000 / (wpm * 50 / 60);
   if (tone) {
@@ -448,7 +497,7 @@ int main(int argc, char *argv[]) {
             verb("f");
           }
           else if (tick_counter < 2 * dot_resolution) {
-            // normal dit (1 or 1.5 dots)
+            // normal dit (1 to 1.5 dots)
             decode(DIT);
           }
           else if (tick_counter < 4.5 * dot_resolution) {
@@ -480,13 +529,13 @@ int main(int argc, char *argv[]) {
         }
         else { /* staying low */
           verb("_");
-          if (tick_counter < 2 * dot_resolution) {
+          if (tick_counter > 2 * farn_mod_factor * dot_resolution) {
             // inter-dot
             /* waint for next dit or dah */ 
             //nop
             ;
             }
-          else if (tick_counter < 6 * dot_resolution) {
+          else if (tick_counter < 4.5 * farn_mod_factor * dot_resolution) {
             // inter-character space
             /* next dit or dah starts new character */
             if (waiting < wait_1) {
@@ -496,7 +545,7 @@ int main(int argc, char *argv[]) {
               waiting = wait_1;
             }
           }
-          else if (tick_counter < 14 * dot_resolution) {
+          else if (tick_counter < 14 * farn_mod_factor * dot_resolution) {
             // long space
             /* word is over. ad space */
               if (waiting < wait_2) {
