@@ -529,7 +529,7 @@ int main(int argc, char *argv[]) {
         }
         else { /* staying low */
           verb("_");
-          if (tick_counter > 2 * farn_mod_factor * dot_resolution) {
+          if (tick_counter < 2 * farn_mod_factor * dot_resolution) {
             // inter-dot
             /* waint for next dit or dah */ 
             //nop
