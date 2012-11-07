@@ -131,7 +131,7 @@ char* name_ptt = "/dev/ttyS0";
 char* name_spkr = "/dev/console";
 int invert_ptt = 0;
 int spkr = 0;
-unsigned int wpm = 12, tone = 440;
+unsigned int wpm = 12, tone = 550;
 int argp = 0;
 int fd_ptt, fd_spkr = -1;
 int dotus;
@@ -490,17 +490,17 @@ int main(int argc, char *argv[]) {
         else { /* low edge */
           verb("\\");
           switch_tone(0);
-          if (tick_counter < 1 * dot_resolution) {
+          if (tick_counter < 0.7 * dot_resolution) {
             // fast dit
             decode(DIT);
             /* TODO: inc WPM */
             verb("f");
           }
-          else if (tick_counter < 2 * dot_resolution) {
+          else if (tick_counter < 1.7 * dot_resolution) {
             // normal dit (1 to 1.5 dots)
             decode(DIT);
           }
-          else if (tick_counter < 4.5 * dot_resolution) {
+          else if (tick_counter < 4.6 * dot_resolution) {
             // normal dah (2 to 4 dots)
             decode(DAH);
           }
@@ -529,13 +529,13 @@ int main(int argc, char *argv[]) {
         }
         else { /* staying low */
           verb("_");
-          if (tick_counter < 2 * farn_mod_factor * dot_resolution) {
+          if (tick_counter < 1.7 * farn_mod_factor * dot_resolution) {
             // inter-dot
             /* waint for next dit or dah */ 
             //nop
             ;
             }
-          else if (tick_counter < 4.5 * farn_mod_factor * dot_resolution) {
+          else if (tick_counter < 4.6 * farn_mod_factor * dot_resolution) {
             // inter-character space
             /* next dit or dah starts new character */
             if (waiting < wait_1) {
@@ -545,7 +545,7 @@ int main(int argc, char *argv[]) {
               waiting = wait_1;
             }
           }
-          else if (tick_counter < 14 * farn_mod_factor * dot_resolution) {
+          else if (tick_counter < 21 * farn_mod_factor * dot_resolution) {
             // long space
             /* word is over. ad space */
               if (waiting < wait_2) {
@@ -557,7 +557,7 @@ int main(int argc, char *argv[]) {
               }
           }
           else {
-            // idling
+            // idling, three times inter-word space
             if (waiting < wait_3) {
               verb("v");
               waiting = wait_3;
